@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>품질 교육 평가 시스템</title>
+<style>
+  :root{
+    --navy:#1B3A5B; --navy-d:#12283F; --teal:#1B9AAA; --teal-l:#E7F4F6;
+    --amber:#F2A007; --amber-l:#FDF1D9; --red:#C0392B; --green:#1E7B4F;
+    --ink:#1F2933; --gray:#5A6672; --lgray:#F4F6F8; --line:#E3E8EC; --white:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Malgun Gothic','맑은 고딕',system-ui,sans-serif;color:var(--ink);
+    background:var(--lgray);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .hidden{display:none!important}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-size:15px}
+  input,select,textarea{font-family:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:8px;width:100%;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--teal);border-color:var(--teal)}
+  label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin:14px 0 5px}
+  .btn{background:var(--teal);color:#fff;padding:11px 18px;font-weight:700}
+  .btn:hover{background:#158090}
+  .btn-navy{background:var(--navy)} .btn-navy:hover{background:var(--navy-d)}
+  .btn-amber{background:var(--amber);color:#5a3d00} .btn-amber:hover{filter:brightness(.95)}
+  .btn-red{background:var(--red)} .btn-red:hover{filter:brightness(.92)}
+  .btn-ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--lgray)}
+  .btn-sm{padding:6px 12px;font-size:13px;border-radius:6px}
+  .full{width:100%}
+  /* ---- 로그인 ---- */
+  .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+    background:linear-gradient(135deg,var(--navy) 0%,var(--navy-d) 100%)}
+  .auth-card{background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:420px;
+    box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .auth-card h1{font-size:22px;color:var(--navy);margin-bottom:4px}
+  .auth-card .sub{font-size:13px;color:var(--gray);margin-bottom:22px}
+  .tabs{display:flex;gap:8px;margin-bottom:8px}
+  .tab{flex:1;padding:9px;text-align:center;border-radius:8px;background:var(--lgray);
+    color:var(--gray);font-weight:700;font-size:14px}
+  .tab.active{background:var(--teal-l);color:var(--teal)}
+  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:12px}
+  .msg.err{background:#FBEAE8;color:var(--red)}
+  .msg.ok{background:#E7F6EE;color:var(--green)}
+  .hint{font-size:12px;color:var(--gray);margin-top:6px}
+  /* ---- 앱 셸 ---- */
+  header.top{background:var(--navy);color:#fff;padding:14px 22px;display:flex;align-items:center;
+    justify-content:space-between;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:10px}
+  header.top .brand{font-weight:700;font-size:17px}
+  header.top .who{font-size:13px;color:#C6D5E2}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px}
+  .badge.admin{background:var(--amber);color:#5a3d00}
+  .badge.user{background:var(--teal);color:#fff}
+  .container{max-width:900px;margin:0 auto;padding:22px 18px 60px}
+  .card{background:#fff;border-radius:12px;border:1px solid var(--line);padding:22px;margin-bottom:18px}
+  .card h2{font-size:18px;color:var(--navy);margin-bottom:4px}
+  .card .desc{font-size:13px;color:var(--gray);margin-bottom:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .navbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .navbtns .tab{cursor:pointer;padding:9px 16px;flex:none}
+  /* ---- 문항 ---- */
+  .part-head{background:var(--navy);color:#fff;padding:11px 16px;border-radius:8px;margin:22px 0 14px;
+    font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .part-head .pts{font-size:12px;color:#C6D5E2;font-weight:400}
+  .q{padding:16px 0;border-bottom:1px solid var(--line)}
+  .q:last-child{border-bottom:none}
+  .q .stem{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px}
+  .q .stem .qno{color:var(--navy)}
+  .q .pt{font-size:12px;color:var(--gray);font-weight:400;margin-left:6px}
+  .opt{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:14px;transition:.12s}
+  .opt:hover{background:var(--lgray)}
+  .opt.sel{background:var(--teal-l);border-color:var(--teal)}
+  .opt input{width:auto;margin-top:3px}
+  .opt .mk{font-weight:700;color:var(--teal)}
+  textarea.subj{min-height:90px;resize:vertical}
+  /* ---- 결과/표 ---- */
+  .scoregrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:8px 0 4px}
+  .scorebox{background:var(--lgray);border-radius:10px;padding:14px;text-align:center}
+  .scorebox .lab{font-size:12px;color:var(--gray)}
+  .scorebox .val{font-size:26px;font-weight:800;color:var(--navy);margin-top:3px}
+  .scorebox.total{background:var(--navy)}
+  .scorebox.total .lab{color:#C6D5E2}.scorebox.total .val{color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;border:1px solid var(--line);text-align:left}
+  th{background:var(--navy);color:#fff;font-weight:700}
+  tr:nth-child(even) td{background:var(--lgray)}
+  .pill{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .pill.wait{background:var(--amber-l);color:#8a6100}
+  .pill.active{background:#E7F6EE;color:var(--green)}
+  .pill.locked{background:#FBEAE8;color:var(--red)}
+  .pill.done{background:var(--teal-l);color:var(--teal)}
+  .ans-correct{color:var(--green);font-weight:700}
+  .ans-wrong{color:var(--red);font-weight:700}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);
+    color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .adminbox{background:var(--amber-l);border:1px solid var(--amber);border-radius:8px;padding:12px;margin-top:10px}
+  .adminbox .t{font-size:12px;font-weight:700;color:#8a6100;margin-bottom:6px}
+  .expl{font-size:13px;color:var(--gray);margin-top:6px;padding:8px 10px;background:var(--lgray);border-radius:6px}
+  .subj-grade{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .subj-grade input{max-width:90px}
+  .filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .filterbar select{max-width:200px}
+  @media(max-width:560px){.container{padding:16px 12px 50px}.card{padding:16px}}
+</style>
+</head>
+<body>
+
+<!-- ================= 로그인 / 가입 ================= -->
+<div id="authView" class="auth-wrap">
+  <div class="auth-card">
+    <h1>품질 교육 평가 시스템</h1>
+    <div class="sub">품질 Mind 및 설계 품질 기본 · 신입사원 평가</div>
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchAuth('login')">로그인</div>
+      <div class="tab" id="tabSignup" onclick="switchAuth('signup')">가입 신청</div>
+    </div>
+
+    <!-- 로그인 -->
+    <div id="loginForm">
+      <label>사원번호</label>
+      <input id="li_emp" placeholder="예: 240513" autocomplete="username">
+      <label>비밀번호</label>
+      <input id="li_pw" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
+      <div class="hint">최초 비밀번호는 사원번호와 같습니다. 로그인 후 변경할 수 있어요.</div>
+      <button class="btn full" style="margin-top:16px" onclick="doLogin()">로그인</button>
+      <div id="loginMsg"></div>
+    </div>
+
+    <!-- 가입 신청 -->
+    <div id="signupForm" class="hidden">
+      <label>이름</label>
+      <input id="su_name" placeholder="홍길동">
+      <label>사원번호</label>
+      <input id="su_emp" placeholder="예: 240513">
+      <label>부서</label>
+      <input id="su_dept" placeholder="예: 품질보증팀">
+      <label>기수</label>
+      <select id="su_cohort"></select>
+      <div class="hint">가입 신청 후 관리자 승인이 완료되면 로그인할 수 있습니다.</div>
+      <button class="btn full" style="margin-top:16px" onclick="doSignup()">가입 신청</button>
+      <div id="signupMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 앱 ================= -->
+<div id="appView" class="hidden">
+  <header class="top">
+    <div class="brand">품질 교육 평가 시스템</div>
+    <div class="row" style="align-items:center">
+      <span class="who" id="whoami"></span>
+      <button class="btn-ghost btn-sm" onclick="openPwChange()">비밀번호 변경</button>
+      <button class="btn-ghost btn-sm" onclick="logout()">로그아웃</button>
+    </div>
+  </header>
+  <div class="container">
+    <!-- 시험자 네비 -->
+    <div id="userNav" class="navbtns hidden">
+      <div class="tab active" data-uv="exam" onclick="userTab('exam')">평가 응시</div>
+      <div class="tab" data-uv="result" onclick="userTab('result')">내 결과</div>
+    </div>
+    <!-- 관리자 네비 -->
+    <div id="adminNav" class="navbtns hidden">
+      <div class="tab active" data-av="approve" onclick="adminTab('approve')">가입 승인</div>
+      <div class="tab" data-av="users" onclick="adminTab('users')">계정/기수 관리</div>
+      <div class="tab" data-av="results" onclick="adminTab('results')">응시 결과·채점</div>
+      <div class="tab" data-av="answers" onclick="adminTab('answers')">정답·해설</div>
+    </div>
+
+    <div id="panel"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- ===== Firebase ===== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
+  addDoc, query, where, deleteDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* =======================================================================
+   ① Firebase 설정 — 아래 firebaseConfig를 본인 프로젝트 값으로 교체하세요.
+      (Firebase 콘솔 → 프로젝트 설정 → 내 앱 → SDK 설정 및 구성)
+   ======================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBXh5dNJgugaK0_g-D7gYircXCkeho7erY",
+  authDomain: "quality-quiz-139a1.firebaseapp.com",
+  projectId: "quality-quiz-139a1",
+  storageBucket: "quality-quiz-139a1.firebasestorage.app",
+  messagingSenderId: "613221391379",
+  appId: "1:613221391379:web:abc5070ddac947244bf3e6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* Firestore 구조
+   users/{empNo}   : {name, empNo, dept, cohort, role:'admin'|'user',
+                      status:'wait'|'active'|'locked', password}
+   results/{empNo} : {empNo, name, cohort, answers:{q1:..},
+                      objScore, subjScores:{q5,q10,q15}, subjAuto:{...},
+                      partScores:{p1,p2,p3}, total, submittedAt, graded:bool}
+   meta/cohorts    : {list:[...]}
+*/
+
+/* ---------- 문항 정의 ---------- */
+const QUESTIONS = {
+  p1: { title:"Part 1. 품질 경영", sub:"품질의 개념과 업무에서의 중요성", items:[
+    { id:"q1", type:"obj", pt:6, stem:"다음 중 이 교육에서 정의한 '품질'의 개념으로 가장 적절한 것은?",
+      opts:["생산 속도를 최대한 끌어올려 원가를 낮추는 것",
+            "여러 고객의 까다롭고 다양한 제품 요구사항을 충족·만족시키는 것",
+            "출하 검사에서 불량을 빠짐없이 걸러내는 것",
+            "설계자가 판단하기에 가장 좋은 사양으로 만드는 것"],
+      ans:2, expl:"품질은 고객 요구사항(Spec)을 충족·만족시키는 것. 기준은 내 판단이 아니라 고객이다." },
+    { id:"q2", type:"obj", pt:6, stem:"'1 : 10 : 100 법칙'에서 각 숫자가 의미하는 비용 단계를 순서대로 바르게 연결한 것은?",
+      opts:["예방 → 재작업(사내 검출) → 사외 Claim(고객 검출)",
+            "재작업 → 예방 → 사외 Claim",
+            "사외 Claim → 재작업 → 예방",
+            "검사 → 예방 → 폐기"],
+      ans:1, expl:"예방(1)→재작업·사내검출(10)→사외 Claim·고객검출(100). 늦게 잡을수록 비용이 커진다." },
+    { id:"q3", type:"obj", pt:6, stem:"COPQ(저품질 비용)의 4가지 분류에 해당하지 않는 것은?",
+      opts:["예방 비용","평가/검사 비용","내부 실패 비용","마케팅 비용"],
+      ans:4, expl:"COPQ는 예방·평가(검사)·내부 실패·외부 실패 4가지. 마케팅 비용은 포함되지 않는다." },
+    { id:"q4", type:"obj", pt:6, stem:"우리 회사가 COPQ를 줄이기 위한 기본 방법으로, 부서와 역할이 잘못 연결된 것은?",
+      opts:["연구소 — 설계 표준에 근거해 설계하고 명확한 작업지시서·Spec 제시",
+            "제조기술 — 작업지시서와 Spec에 따라 작업, 임의 작업 금지",
+            "품질 — 작업지시서 유무와 그에 따른 작업 여부를 현장에서 모니터링",
+            "연구소 — 출하 검사에서 최종 불량을 전수 검출"],
+      ans:4, expl:"출하 전수 검출은 연구소 역할이 아니다. 연구소는 설계 표준 기반 설계와 Spec 제시가 역할." },
+    { id:"q5", type:"subj", pt:8, stem:"'1 : 10 : 100 법칙'이 의미하는 바를 설명하고, 이 법칙이 '품질은 검사가 아니라 설계(예방)에서 만들어진다'는 말과 어떻게 연결되는지 서술하시오.",
+      keywords:["예방","설계","고객","비용","100","재작업","클레임","검사"],
+      model:"같은 불량이라도 잡는 단계가 늦을수록 비용이 커진다(예방1→재작업10→사외Claim100). 고객에게 넘어간 뒤 잡으면 비용이 폭증하므로, 앞 단계인 설계에서 예방하는 것이 가장 저렴하다. 따라서 품질은 뒤에서 걸러내는 검사가 아니라 앞에서 막는 설계·예방에서 만들어진다." },
+  ]},
+  p2: { title:"Part 2. 8D Report", sub:"문제 해결 절차와 8D Report의 주요 내용", items:[
+    { id:"q6", type:"obj", pt:6, stem:"8D Report에 대한 설명으로 옳지 않은 것은?",
+      opts:["문제의 시정조치·재발방지 대책을 세우는 프로세스이자 8단계 보고서이다",
+            "예방 기법이 아니라 문제 해결에 집중하기 위한 절차이다",
+            "문제를 정의하고 명확히 이해하는 데 초점을 둔다",
+            "8D는 문제가 발생하기 전에 위험을 예측하는 예방 전용 기법이다"],
+      ans:4, expl:"8D는 예방 기법이 아니라 이미 발생한 문제를 해결하는 데 집중하는 절차다." },
+    { id:"q7", type:"obj", pt:6, stem:"TW HQ 내부 규정상 8D Report 제출 기한으로 옳은 것은?",
+      opts:["최초 이슈 접수 후 24시간 내 3D(D1~D3), 부적합품 접수 후 7일 이내 8D 제출",
+            "최초 이슈 접수 후 7일 내 3D, 30일 이내 8D 제출",
+            "부적합품 접수 후 24시간 이내 8D 전체 제출",
+            "기한 규정 없이 개선 완료 시 제출"],
+      ans:1, expl:"24시간 내 3D(D1~D3), 부적합품 접수 후 7일 이내 8D. Critical 건은 고객 요구 기한 내." },
+    { id:"q8", type:"obj", pt:6, stem:"8D 단계 중 '봉쇄 조치(D3)'에 대한 설명으로 가장 적절한 것은?",
+      opts:["근본 원인을 완전히 제거하는 영구 대책이다",
+            "이상 확산을 막기 위한 즉시·임시 조치이며 근본 해결은 아니다",
+            "관련 표준류를 개정하는 표준화 단계이다",
+            "개선 효과를 평가하고 횡 전개하는 단계이다"],
+      ans:2, expl:"D3 봉쇄는 이상 확산을 막는 즉시·임시 조치. 근본 해결은 D4부터 시작된다." },
+    { id:"q9", type:"obj", pt:6, stem:"5Why 기법으로 '볼트 낙하' 사례를 분석할 때, 근본원인(D4)으로 가장 올바른 방향은?",
+      opts:["근본원인은 '볼트 풀림'이며, 대책은 록타이트 양을 늘리는 것이다",
+            "근본원인은 '작업자 실수'이며, 해당 작업자를 교체한다",
+            "록타이트 도포량 기준 부재·작업지시서 미반영이 근본원인이며, 기준 정립·작업지시서 발행·작업자 교육이 필요하다",
+            "근본원인 파악 없이 설비를 교체한다"],
+      ans:3, expl:"'볼트 풀림'에서 멈추면 증상만 덮는 것. 기준·시스템의 빈틈까지 파고들어야 한다." },
+    { id:"q10", type:"subj", pt:12, stem:"8D의 8단계(D1~D8)를 순서대로 쓰고, '즉시조치(24시간)'와 '영구조치(7일)'에 각각 어느 단계가 해당하는지 구분하여 쓰시오.",
+      keywords:["D1","D2","D3","D4","D5","D6","D7","D8","팀","봉쇄","근본","표준","즉시","영구"],
+      model:"순서: D1 팀 구성 → D2 문제 정의 → D3 봉쇄 조치 → D4 근본원인 분석 → D5 대책 수립 → D6 효과 검증 → D7 표준화 → D8 종결·최종 승인. 즉시조치(24h): D1~D3, 영구조치(7일): D4~D8." },
+  ]},
+  p3: { title:"Part 3. ESD (설계 기본품질)", sub:"ESD의 개념·발생 원인·예방·관리 방법", items:[
+    { id:"q11", type:"obj", pt:6, stem:"ESD(Electro Static Discharge)에 대한 설명으로 옳은 것은?",
+      opts:["전하가 정지 상태로 머물러 분포가 변하지 않는 전기 그 자체를 말한다",
+            "전위차에 의해 정전기를 띤 물체에서 정전기가 방출되는 현상이다",
+            "최대치를 초과한 전류·전위에 노출되어 받는 전기적 충격이다",
+            "음·양이온을 발생시켜 정전기를 중화하는 장치이다"],
+      ans:2, expl:"ESD는 전위차로 정전기가 방출되는 현상. ①정전기 정의, ③EOS, ④Ionizer." },
+    { id:"q12", type:"obj", pt:6, stem:"정전기 피해 유형 중 '잠재적 피해(Latent Failure)'에 대한 설명으로 옳은 것은?",
+      opts:["부품이 완전히 파괴되어 즉시 발견할 수 있다",
+            "정상 제품처럼 작동하나 언제 고장 날지 예측이 어렵고, 전체 ESD 피해의 약 90%를 차지한다",
+            "금속 용해·유전 파괴·열 파괴의 형태로만 나타난다",
+            "인체가 느끼는 따끔한 정도의 경미한 현상이다"],
+      ans:2, expl:"잠재적 피해는 정상처럼 작동하다 예측 불가하게 고장. 전체의 약 90%로 더 치명적." },
+    { id:"q13", type:"obj", pt:6, stem:"TW ESD STD 기준에서 '정전분산체(Dissipative)'의 표면 저항 범위로 옳은 것은?",
+      opts:["1.0×10⁵ ~ 9.9×10⁸ Ω","< 1×10⁴ Ω","> 1×10⁹ Ω 이상","1×10¹¹ Ω 초과"],
+      ans:1, expl:"TW ESD STD 정전분산체 범위는 1.0×10⁵~9.9×10⁸ Ω. ②전도체 ③절연체." },
+    { id:"q14", type:"obj", pt:6, stem:"설계 시 ESD 고려사항으로 잘못 연결된 것은?",
+      opts:["접지 저항 — Main전원~Frame < 1Ω 관리",
+            "마찰 대전 — 제품 6inch 이내 ±100V 이하 목표(고객 기준 우선)",
+            "표면 저항 — 제품과 닿는 부분은 소산성(정전분산) 재질 사용",
+            "Ionizer — 검교정이 필요 없는 측정기로 대체 가능"],
+      ans:4, expl:"Ionizer 포함 모든 측정기기는 반드시 검교정(Calibration)된 것을 사용해야 한다." },
+    { id:"q15", type:"subj", pt:8, stem:"정전기의 발생 종류 3가지(마찰·박리·유도 대전)를 쓰고, 그중 한 가지를 골라 발생 원리를 간단히 설명하시오.",
+      keywords:["마찰","박리","유도","대전","전하","분리","접근"],
+      model:"3가지: 마찰 대전, 박리 대전, 유도 대전. (예) 마찰 대전 — 마찰로 접촉 위치가 이동하며 전하가 분리되어 발생 / 박리 대전 — 밀착된 물체가 떨어질 때 발생 / 유도 대전 — 전하를 띤 물체가 접근할 때 유도되어 발생." },
+  ]},
+};
+const PARTS=["p1","p2","p3"];
+const TOTAL_POINTS=100;
+
+/* ---------- 전역 상태 ---------- */
+let CUR=null; // 현재 로그인 사용자
+let COHORTS=["26년 신입 5기"]; // 기본 기수
+
+/* ---------- 유틸 ---------- */
+const $=id=>document.getElementById(id);
+function toast(m){const t=$("toast");t.textContent=m;t.classList.remove("hidden");
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.add("hidden"),2600);}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- 기수 로딩 ---------- */
+async function loadCohorts(){
+  try{
+    const d=await getDoc(doc(db,"meta","cohorts"));
+    if(d.exists()&&Array.isArray(d.data().list)&&d.data().list.length) COHORTS=d.data().list;
+    else await setDoc(doc(db,"meta","cohorts"),{list:COHORTS});
+  }catch(e){console.warn("cohort load",e);}
+  const sel=$("su_cohort"); sel.innerHTML=COHORTS.map(c=>`<option>${esc(c)}</option>`).join("");
+}
+async function saveCohorts(){ await setDoc(doc(db,"meta","cohorts"),{list:COHORTS}); }
+
+/* ---------- 관리자 부트스트랩 ----------
+   users 컬렉션이 비어있으면 최초 1회 기본 관리자 생성:
+   사원번호 admin / 비밀번호 admin ----------------------------------------- */
+async function ensureAdmin(){
+  const snap=await getDocs(collection(db,"users"));
+  if(snap.empty){
+    await setDoc(doc(db,"users","admin"),{
+      name:"관리자",empNo:"admin",dept:"QA팀",cohort:"-",role:"admin",
+      status:"active",password:"admin",createdAt:serverTimestamp()});
+  }
+}
+
+/* ================= 인증 ================= */
+window.switchAuth=(m)=>{
+  $("tabLogin").classList.toggle("active",m==="login");
+  $("tabSignup").classList.toggle("active",m==="signup");
+  $("loginForm").classList.toggle("hidden",m!=="login");
+  $("signupForm").classList.toggle("hidden",m!=="signup");
+};
+
+window.doLogin=async()=>{
+  const emp=$("li_emp").value.trim(), pw=$("li_pw").value;
+  const msg=$("loginMsg");
+  if(!emp||!pw){msg.className="msg err";msg.textContent="사원번호와 비밀번호를 입력하세요.";return;}
+  try{
+    const d=await getDoc(doc(db,"users",emp));
+    if(!d.exists()){msg.className="msg err";msg.textContent="등록되지 않은 사원번호입니다.";return;}
+    const u=d.data();
+    if(u.password!==pw){msg.className="msg err";msg.textContent="비밀번호가 올바르지 않습니다.";return;}
+    if(u.status==="wait"){msg.className="msg err";msg.textContent="아직 승인 대기 중입니다. 관리자 승인 후 로그인하세요.";return;}
+    if(u.status==="locked"){msg.className="msg err";msg.textContent="계정이 잠겨 있습니다. 관리자에게 문의하세요.";return;}
+    CUR=u; sessionStorage.setItem("cur",JSON.stringify(u));
+    enterApp();
+  }catch(e){msg.className="msg err";msg.textContent="오류: "+e.message;}
+};
+
+window.doSignup=async()=>{
+  const name=$("su_name").value.trim(), emp=$("su_emp").value.trim(),
+        dept=$("su_dept").value.trim(), cohort=$("su_cohort").value;
+  const msg=$("signupMsg");
+  if(!name||!emp||!dept){msg.className="msg err";msg.textContent="모든 항목을 입력하세요.";return;}
+  try{
+    const ex=await getDoc(doc(db,"users",emp));
+    if(ex.exists()){msg.className="msg err";msg.textContent="이미 등록/신청된 사원번호입니다.";return;}
+    await setDoc(doc(db,"users",emp),{
+      name,empNo:emp,dept,cohort,role:"user",status:"wait",
+      password:emp,createdAt:serverTimestamp()});
+    msg.className="msg ok";msg.textContent="가입 신청 완료! 관리자 승인 후 로그인할 수 있습니다.";
+    $("su_name").value=$("su_emp").value=$("su_dept").value="";
+  }catch(e){msg.className="msg err";msg.textContent="오류: "+e.message;}
+};
+
+window.logout=()=>{sessionStorage.removeItem("cur");location.reload();};
+
+/* ---------- 비밀번호 변경 ---------- */
+window.openPwChange=async()=>{
+  const np=prompt("새 비밀번호를 입력하세요 (취소 시 변경 안 함):");
+  if(np===null||np==="")return;
+  await updateDoc(doc(db,"users",CUR.empNo),{password:np});
+  CUR.password=np; sessionStorage.setItem("cur",JSON.stringify(CUR));
+  toast("비밀번호가 변경되었습니다.");
+};
+
+/* ================= 앱 진입 ================= */
+function enterApp(){
+  $("authView").classList.add("hidden");
+  $("appView").classList.remove("hidden");
+  $("whoami").innerHTML=`${esc(CUR.name)} · ${esc(CUR.empNo)} · ${esc(CUR.cohort)}`+
+    `<span class="badge ${CUR.role==='admin'?'admin':'user'}">${CUR.role==='admin'?'관리자':'시험자'}</span>`;
+  if(CUR.role==="admin"){$("adminNav").classList.remove("hidden");adminTab('approve');}
+  else{$("userNav").classList.remove("hidden");userTab('exam');}
+}
+
+/* ================= 시험자 화면 ================= */
+window.userTab=(t)=>{
+  document.querySelectorAll('#userNav .tab').forEach(x=>x.classList.toggle('active',x.dataset.uv===t));
+  if(t==="exam") renderExam();
+  else renderMyResult();
+};
+
+async function renderExam(){
+  const panel=$("panel");
+  const rd=await getDoc(doc(db,"results",CUR.empNo));
+  if(rd.exists() && CUR.status!=="active_retake"){
+    const r=rd.data();
+    if(r.submittedAt && CUR.retake!==true){
+      panel.innerHTML=`<div class="card"><h2>이미 응시를 완료했습니다</h2>
+        <div class="desc">제출된 답안은 '내 결과' 탭에서 확인할 수 있습니다.
+        재응시가 필요하면 관리자에게 요청하세요.</div></div>`;
+      return;
+    }
+  }
+  let html=`<div class="card"><h2>평가 응시</h2>
+    <div class="desc">전체 15문항 · 100점 · 객관식은 자동 채점, 주관식은 관리자 검토 후 확정됩니다.</div>`;
+  PARTS.forEach(pk=>{
+    const P=QUESTIONS[pk];
+    const pts=P.items.reduce((a,b)=>a+b.pt,0);
+    html+=`<div class="part-head"><span>${esc(P.title)} — ${esc(P.sub)}</span><span class="pts">${pts}점</span></div>`;
+    P.items.forEach(q=>{
+      html+=`<div class="q"><div class="stem"><span class="qno">${q.id.slice(1)}.</span> ${esc(q.stem)}
+        <span class="pt">(${q.type==='obj'?'객관식':'주관식'} ${q.pt}점)</span></div>`;
+      if(q.type==="obj"){
+        const marks=["①","②","③","④"];
+        q.opts.forEach((o,i)=>{
+          html+=`<label class="opt" data-q="${q.id}" onclick="pickOpt(this)">
+            <input type="radio" name="${q.id}" value="${i+1}">
+            <span class="mk">${marks[i]}</span><span>${esc(o)}</span></label>`;
+        });
+      }else{
+        html+=`<textarea class="subj" id="ta_${q.id}" placeholder="답안을 입력하세요"></textarea>`;
+      }
+      html+=`</div>`;
+    });
+  });
+  html+=`<button class="btn full btn-navy" style="margin-top:18px" onclick="submitExam()">제출하고 채점하기</button></div>`;
+  panel.innerHTML=html;
+}
+window.pickOpt=(el)=>{
+  document.querySelectorAll(`.opt[data-q="${el.dataset.q}"]`).forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel'); el.querySelector('input').checked=true;
+};
+
+/* ---------- 주관식 1차 자동채점 (키워드 기반) ---------- */
+function autoGradeSubj(q,text){
+  if(!text||!text.trim()) return 0;
+  const t=text.replace(/\s/g,"").toLowerCase();
+  let hit=0;
+  q.keywords.forEach(k=>{ if(t.includes(k.toLowerCase())) hit++; });
+  const ratio=hit/q.keywords.length;
+  // 배점 비율로 환산 후 0.5점 단위 반올림
+  let sc=Math.round(q.pt*ratio*2)/2;
+  return Math.min(sc,q.pt);
+}
+
+window.submitExam=async()=>{
+  const answers={}; let objScore=0; const partScores={p1:0,p2:0,p3:0};
+  const subjAuto={}, subjScores={};
+  // 미응답 체크
+  let unanswered=0;
+  PARTS.forEach(pk=>QUESTIONS[pk].items.forEach(q=>{
+    if(q.type==="obj"){
+      const sel=document.querySelector(`input[name="${q.id}"]:checked`);
+      const v=sel?Number(sel.value):null; answers[q.id]=v;
+      if(v===null)unanswered++;
+      if(v===q.ans){objScore+=q.pt;partScores[pk]+=q.pt;}
+    }else{
+      const txt=$("ta_"+q.id).value.trim(); answers[q.id]=txt;
+      if(!txt)unanswered++;
+      const a=autoGradeSubj(q,txt); subjAuto[q.id]=a; subjScores[q.id]=a;
+      partScores[pk]+=a;
+    }
+  }));
+  if(unanswered>0 && !confirm(`미응답 문항이 ${unanswered}개 있습니다. 그래도 제출할까요?`)) return;
+  const total=objScore+Object.values(subjScores).reduce((a,b)=>a+b,0);
+  const rec={empNo:CUR.empNo,name:CUR.name,dept:CUR.dept,cohort:CUR.cohort,
+    answers,objScore,subjAuto,subjScores,partScores,total,
+    graded:false, submittedAt:new Date().toISOString()};
+  await setDoc(doc(db,"results",CUR.empNo),rec);
+  // 재응시 플래그 해제
+  await updateDoc(doc(db,"users",CUR.empNo),{retake:false}).catch(()=>{});
+  CUR.retake=false; sessionStorage.setItem("cur",JSON.stringify(CUR));
+  toast("제출 완료! 채점 결과를 확인하세요.");
+  userTab('result');
+};
+
+async function renderMyResult(){
+  const panel=$("panel");
+  const rd=await getDoc(doc(db,"results",CUR.empNo));
+  if(!rd.exists()){panel.innerHTML=`<div class="card"><h2>아직 응시 기록이 없습니다</h2>
+    <div class="desc">'평가 응시' 탭에서 시험을 진행하세요.</div></div>`;return;}
+  const r=rd.data();
+  const status = r.graded ? `<span class="pill done">채점 확정</span>` : `<span class="pill wait">주관식 검토 대기</span>`;
+  let html=`<div class="card"><h2>내 결과 ${status}</h2>
+    <div class="desc">객관식은 자동 채점되었고, 주관식은 관리자 검토 후 점수가 조정될 수 있습니다.</div>
+    <div class="scoregrid">
+      <div class="scorebox"><div class="lab">Part 1 · 품질경영</div><div class="val">${r.partScores.p1}</div></div>
+      <div class="scorebox"><div class="lab">Part 2 · 8D</div><div class="val">${r.partScores.p2}</div></div>
+      <div class="scorebox"><div class="lab">Part 3 · ESD</div><div class="val">${r.partScores.p3}</div></div>
+      <div class="scorebox total"><div class="lab">총점</div><div class="val">${r.total} / 100</div></div>
+    </div></div>`;
+  panel.innerHTML=html;
+}
+
+/* ================= 관리자 화면 ================= */
+window.adminTab=(t)=>{
+  document.querySelectorAll('#adminNav .tab').forEach(x=>x.classList.toggle('active',x.dataset.av===t));
+  if(t==="approve")renderApprove();
+  else if(t==="users")renderUsers();
+  else if(t==="results")renderResults();
+  else renderAnswers();
+};
+
+async function renderApprove(){
+  const panel=$("panel");
+  const snap=await getDocs(query(collection(db,"users"),where("status","==","wait")));
+  let rows="";
+  snap.forEach(d=>{const u=d.data();
+    rows+=`<tr><td>${esc(u.name)}</td><td>${esc(u.empNo)}</td><td>${esc(u.dept)}</td>
+      <td>${esc(u.cohort)}</td>
+      <td><button class="btn btn-sm" onclick="approveUser('${u.empNo}')">승인</button>
+      <button class="btn-red btn-sm" onclick="rejectUser('${u.empNo}')" style="color:#fff">거절</button></td></tr>`;});
+  panel.innerHTML=`<div class="card"><h2>가입 승인 대기</h2>
+    <div class="desc">승인하면 해당 사원번호로 로그인할 수 있습니다. (기본 비밀번호 = 사원번호)</div>
+    ${snap.empty?`<div class="expl">대기 중인 신청이 없습니다.</div>`:
+    `<table><thead><tr><th>이름</th><th>사원번호</th><th>부서</th><th>기수</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table>`}
+    </div>`;
+}
+window.approveUser=async(emp)=>{await updateDoc(doc(db,"users",emp),{status:"active"});toast("승인 완료");renderApprove();};
+window.rejectUser=async(emp)=>{if(!confirm("이 신청을 삭제할까요?"))return;await deleteDoc(doc(db,"users",emp));toast("삭제됨");renderApprove();};
+
+async function renderUsers(){
+  const panel=$("panel");
+  const snap=await getDocs(collection(db,"users"));
+  const users=[];snap.forEach(d=>users.push(d.data()));
+  users.sort((a,b)=>(a.cohort||"").localeCompare(b.cohort||"")|| (a.name||"").localeCompare(b.name));
+  let rows="";
+  users.forEach(u=>{
+    const st=u.status==="active"?`<span class="pill active">활성</span>`:
+      u.status==="wait"?`<span class="pill wait">대기</span>`:`<span class="pill locked">잠금</span>`;
+    rows+=`<tr><td>${esc(u.name)}</td><td>${esc(u.empNo)}</td><td>${esc(u.dept)}</td>
+      <td>${esc(u.cohort)}</td><td>${u.role==='admin'?'관리자':'시험자'}</td><td>${st}</td>
+      <td>
+        <button class="btn-ghost btn-sm" onclick="resetPw('${u.empNo}')">비번초기화</button>
+        <button class="btn-amber btn-sm" onclick="allowRetake('${u.empNo}')">재응시허용</button>
+        ${u.status==='locked'?`<button class="btn btn-sm" onclick="setStatus('${u.empNo}','active')">잠금해제</button>`
+          :`<button class="btn-red btn-sm" style="color:#fff" onclick="setStatus('${u.empNo}','locked')">잠금</button>`}
+      </td></tr>`;
+  });
+  const cohortOpts=COHORTS.map(c=>`<option>${esc(c)}</option>`).join("");
+  panel.innerHTML=`
+    <div class="card"><h2>기수 관리</h2>
+      <div class="desc">기수를 추가하면 가입 신청·계정 생성에서 선택할 수 있습니다.</div>
+      <div class="row"><div style="flex:1;min-width:180px">
+        <input id="newCohort" placeholder="예: 26년 신입 6기"></div>
+        <button class="btn" onclick="addCohort()">기수 추가</button></div>
+      <div class="expl" style="margin-top:10px">현재 기수: ${COHORTS.map(esc).join(" · ")}</div>
+    </div>
+    <div class="card"><h2>계정 직접 생성</h2>
+      <div class="desc">기수별로 계정을 직접 만들면 승인 없이 바로 활성화됩니다. 기본 비밀번호는 사원번호와 같습니다.</div>
+      <div class="row">
+        <div style="flex:1;min-width:120px"><label>이름</label><input id="ac_name"></div>
+        <div style="flex:1;min-width:120px"><label>사원번호</label><input id="ac_emp"></div>
+      </div>
+      <div class="row">
+        <div style="flex:1;min-width:120px"><label>부서</label><input id="ac_dept"></div>
+        <div style="flex:1;min-width:120px"><label>기수</label><select id="ac_cohort">${cohortOpts}</select></div>
+        <div style="flex:1;min-width:120px"><label>권한</label>
+          <select id="ac_role"><option value="user">시험자</option><option value="admin">관리자</option></select></div>
+      </div>
+      <button class="btn btn-navy full" style="margin-top:14px" onclick="createAccount()">계정 생성</button>
+    </div>
+    <div class="card"><h2>계정 목록</h2>
+      <table><thead><tr><th>이름</th><th>사번</th><th>부서</th><th>기수</th><th>권한</th><th>상태</th><th>관리</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+window.addCohort=async()=>{const v=$("newCohort").value.trim();if(!v)return;
+  if(COHORTS.includes(v)){toast("이미 있는 기수");return;}
+  COHORTS.push(v);await saveCohorts();toast("기수 추가됨");renderUsers();
+  $("su_cohort").innerHTML=COHORTS.map(c=>`<option>${esc(c)}</option>`).join("");};
+window.createAccount=async()=>{
+  const name=$("ac_name").value.trim(),emp=$("ac_emp").value.trim(),
+        dept=$("ac_dept").value.trim(),cohort=$("ac_cohort").value,role=$("ac_role").value;
+  if(!name||!emp||!dept){toast("이름·사번·부서를 입력하세요");return;}
+  const ex=await getDoc(doc(db,"users",emp));
+  if(ex.exists()){toast("이미 존재하는 사원번호");return;}
+  await setDoc(doc(db,"users",emp),{name,empNo:emp,dept,cohort,role,status:"active",
+    password:emp,createdAt:serverTimestamp()});
+  toast("계정 생성 완료 (비밀번호 = 사원번호)");renderUsers();
+};
+window.resetPw=async(emp)=>{await updateDoc(doc(db,"users",emp),{password:emp});toast("비밀번호를 사원번호로 초기화");};
+window.setStatus=async(emp,s)=>{await updateDoc(doc(db,"users",emp),{status:s});toast(s==='locked'?"잠금됨":"잠금 해제됨");renderUsers();};
+window.allowRetake=async(emp)=>{await updateDoc(doc(db,"users",emp),{retake:true});
+  await deleteDoc(doc(db,"results",emp)).catch(()=>{});toast("재응시 허용 (기존 답안 초기화)");};
+
+async function renderResults(){
+  const panel=$("panel");
+  const snap=await getDocs(collection(db,"results"));
+  const results=[];snap.forEach(d=>results.push(d.data()));
+  results.sort((a,b)=>(a.cohort||"").localeCompare(b.cohort||"")||(b.submittedAt||"").localeCompare(a.submittedAt||""));
+  const cohortSet=[...new Set(results.map(r=>r.cohort))];
+  let filter=`<div class="filterbar"><label style="margin:0">기수 필터</label>
+    <select id="resFilter" onchange="renderResults()">
+      <option value="">전체</option>
+      ${cohortSet.map(c=>`<option ${window._resF===c?'selected':''}>${esc(c)}</option>`).join("")}
+    </select></div>`;
+  const f=window._resF||"";
+  let rows="";
+  results.filter(r=>!f||r.cohort===f).forEach(r=>{
+    const st=r.graded?`<span class="pill done">확정</span>`:`<span class="pill wait">검토대기</span>`;
+    rows+=`<tr><td>${esc(r.name)}</td><td>${esc(r.empNo)}</td><td>${esc(r.cohort)}</td>
+      <td>${r.partScores.p1}</td><td>${r.partScores.p2}</td><td>${r.partScores.p3}</td>
+      <td><b>${r.total}</b></td><td>${st}</td>
+      <td><button class="btn btn-sm" onclick="gradeResult('${r.empNo}')">채점/보기</button></td></tr>`;
+  });
+  panel.innerHTML=`<div class="card"><h2>응시 결과 · 주관식 채점</h2>
+    <div class="desc">주관식은 1차 자동채점 점수가 들어가 있습니다. '채점/보기'에서 확인·수정 후 확정하세요.</div>
+    ${filter}
+    ${results.filter(r=>!f||r.cohort===f).length?
+      `<table><thead><tr><th>이름</th><th>사번</th><th>기수</th><th>P1</th><th>P2</th><th>P3</th><th>총점</th><th>상태</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>`:
+      `<div class="expl">해당 조건의 응시 결과가 없습니다.</div>`}
+    </div>`;
+  const sel=$("resFilter"); if(sel) sel.onchange=()=>{window._resF=sel.value;renderResults();};
+}
+
+window.gradeResult=async(emp)=>{
+  const rd=await getDoc(doc(db,"results",emp));if(!rd.exists())return;
+  const r=rd.data();const panel=$("panel");
+  let html=`<div class="card"><h2>${esc(r.name)} (${esc(r.empNo)}) · ${esc(r.cohort)}</h2>
+    <div class="desc">객관식 자동 채점 결과와 주관식 답안입니다. 주관식 점수를 조정한 뒤 확정하세요.</div>`;
+  PARTS.forEach(pk=>{
+    const P=QUESTIONS[pk];
+    html+=`<div class="part-head"><span>${esc(P.title)}</span></div>`;
+    P.items.forEach(q=>{
+      const a=r.answers[q.id];
+      if(q.type==="obj"){
+        const marks=["①","②","③","④"];
+        const ok=a===q.ans;
+        html+=`<div class="q"><div class="stem"><span class="qno">${q.id.slice(1)}.</span> ${esc(q.stem)}
+          <span class="pt">(${q.pt}점)</span></div>
+          <div>응답: <span class="${ok?'ans-correct':'ans-wrong'}">${a?marks[a-1]:'무응답'}</span>
+          · 정답: <span class="ans-correct">${marks[q.ans-1]}</span>
+          · 획득: <b>${ok?q.pt:0}</b>점</div>
+          <div class="expl">${esc(q.expl)}</div></div>`;
+      }else{
+        html+=`<div class="q"><div class="stem"><span class="qno">${q.id.slice(1)}.</span> ${esc(q.stem)}
+          <span class="pt">(${q.pt}점)</span></div>
+          <div class="adminbox"><div class="t">시험자 답안</div>${esc(a)||'<i>무응답</i>'}</div>
+          <div class="expl"><b>모범답안:</b> ${esc(q.model)}</div>
+          <div class="subj-grade"><label style="margin:0">점수</label>
+            <input type="number" id="sg_${q.id}" min="0" max="${q.pt}" step="0.5" value="${r.subjScores[q.id]}">
+            <span style="font-size:13px;color:var(--gray)">/ ${q.pt}점 (자동채점: ${r.subjAuto[q.id]})</span></div>
+        </div>`;
+      }
+    });
+  });
+  html+=`<div class="row" style="margin-top:16px">
+    <button class="btn btn-navy" onclick="confirmGrade('${emp}')">채점 확정 저장</button>
+    <button class="btn-ghost" onclick="adminTab('results')">목록으로</button></div></div>`;
+  panel.innerHTML=html;
+};
+window.confirmGrade=async(emp)=>{
+  const rd=await getDoc(doc(db,"results",emp));const r=rd.data();
+  const subjScores={...r.subjScores};let subjTotal=0;
+  const partScores={p1:0,p2:0,p3:0};
+  // 객관식 재계산
+  PARTS.forEach(pk=>QUESTIONS[pk].items.forEach(q=>{
+    if(q.type==="obj"){ if(r.answers[q.id]===q.ans) partScores[pk]+=q.pt; }
+  }));
+  // 주관식 입력값 반영
+  PARTS.forEach(pk=>QUESTIONS[pk].items.forEach(q=>{
+    if(q.type==="subj"){
+      let v=parseFloat($("sg_"+q.id).value);if(isNaN(v))v=0;v=Math.max(0,Math.min(v,q.pt));
+      subjScores[q.id]=v;subjTotal+=v;partScores[pk]+=v;
+    }
+  }));
+  const objScore=PARTS.reduce((a,pk)=>a+QUESTIONS[pk].items.reduce((s,q)=>s+(q.type==='obj'&&r.answers[q.id]===q.ans?q.pt:0),0),0);
+  const total=objScore+subjTotal;
+  await updateDoc(doc(db,"results",emp),{subjScores,partScores,objScore,total,graded:true});
+  toast("채점 확정 저장 완료");adminTab('results');
+};
+
+function renderAnswers(){
+  const panel=$("panel");
+  let html=`<div class="card"><h2>정답 · 해설 (관리자 전용)</h2>
+    <div class="desc">시험자에게는 노출되지 않습니다.</div>`;
+  PARTS.forEach(pk=>{
+    const P=QUESTIONS[pk];
+    html+=`<div class="part-head"><span>${esc(P.title)}</span></div>`;
+    P.items.forEach(q=>{
+      const marks=["①","②","③","④"];
+      html+=`<div class="q"><div class="stem"><span class="qno">${q.id.slice(1)}.</span> ${esc(q.stem)}
+        <span class="pt">(${q.type==='obj'?'객관식':'주관식'} ${q.pt}점)</span></div>`;
+      if(q.type==="obj"){
+        html+=`<div>정답: <span class="ans-correct">${marks[q.ans-1]} ${esc(q.opts[q.ans-1])}</span></div>
+          <div class="expl">${esc(q.expl)}</div>`;
+      }else{
+        html+=`<div class="expl"><b>모범답안:</b> ${esc(q.model)}</div>`;
+      }
+      html+=`</div>`;
+    });
+  });
+  html+=`</div>`;
+  panel.innerHTML=html;
+}
+
+/* ================= 부팅 ================= */
+(async()=>{
+  try{
+    await ensureAdmin();
+    await loadCohorts();
+    const saved=sessionStorage.getItem("cur");
+    if(saved){
+      // 세션 복원 시 최신 상태 재확인
+      const u=JSON.parse(saved);
+      const d=await getDoc(doc(db,"users",u.empNo));
+      if(d.exists()&&d.data().status!=="locked"){CUR=d.data();enterApp();}
+      else sessionStorage.removeItem("cur");
+    }
+  }catch(e){
+    console.error(e);
+    $("loginMsg").className="msg err";
+    $("loginMsg").textContent="Firebase 연결 오류: 설정값(firebaseConfig)과 보안 규칙을 확인하세요.";
+  }
+})();
+</script>
+</body>
+</html>
