@@ -164,8 +164,8 @@
       <label>사원번호</label>
       <input id="li_emp" placeholder="예: 240513" autocomplete="username">
       <label>비밀번호</label>
-      <input id="li_pw" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password">
-      <div class="hint">최초 비밀번호는 사원번호와 같습니다. 로그인 후 변경할 수 있어요.</div>
+      <input id="li_pw" type="password" placeholder="기본값은 사원번호와 동일" autocomplete="current-password">
+      <div class="hint">비밀번호를 입력하세요</div>
       <button class="btn full" style="margin-top:16px" onclick="doLogin()">로그인</button>
       <div id="loginMsg"></div>
     </div>
@@ -560,7 +560,7 @@ window.submitExam=async()=>{
   // 재응시 플래그 해제
   await updateDoc(doc(db,"users",CUR.empNo),{retake:false}).catch(()=>{});
   CUR.retake=false; sessionStorage.setItem("cur",JSON.stringify(CUR));
-  toast("제출 완료! 채점 결과를 확인하세요.");
+  toast("제출 완료! 관리자 채점 후 결과가 공개됩니다.");
   userTab('result');
 };
 
@@ -570,9 +570,17 @@ async function renderMyResult(){
   if(!rd.exists()){panel.innerHTML=`<div class="card"><h2>아직 응시 기록이 없습니다</h2>
     <div class="desc">'평가 응시' 탭에서 시험을 진행하세요.</div></div>`;return;}
   const r=rd.data();
-  const status = r.graded ? `<span class="pill done">채점 확정</span>` : `<span class="pill wait">주관식 검토 대기</span>`;
-  let html=`<div class="card"><h2>내 결과 ${status}</h2>
-    <div class="desc">객관식은 자동 채점되었고, 주관식은 관리자 검토 후 점수가 조정될 수 있습니다.</div>
+  // 관리자가 채점을 확정하기 전에는 점수를 공개하지 않는다
+  if(!r.graded){
+    panel.innerHTML=`<div class="card"><h2>제출 완료 <span class="pill wait">채점 진행 중</span></h2>
+      <div class="desc">응시가 정상적으로 제출되었습니다.</div>
+      <div class="adminbox"><div class="t">안내</div>
+        관리자의 최종 채점이 완료되면 이곳에서 결과를 확인할 수 있습니다.
+        조금만 기다려 주세요.</div></div>`;
+    return;
+  }
+  let html=`<div class="card"><h2>내 결과 <span class="pill done">채점 확정</span></h2>
+    <div class="desc">관리자 최종 채점이 완료된 결과입니다.</div>
     <div class="scoregrid">
       <div class="scorebox"><div class="lab">Part 1 · 품질경영</div><div class="val">${r.partScores.p1}</div></div>
       <div class="scorebox"><div class="lab">Part 2 · 8D</div><div class="val">${r.partScores.p2}</div></div>
@@ -744,7 +752,10 @@ async function renderResults(){
     rows+=`<tr><td>${esc(r.name)}</td><td>${esc(r.empNo)}</td><td>${esc(r.cohort)}</td>
       <td>${r.partScores.p1}</td><td>${r.partScores.p2}</td><td>${r.partScores.p3}</td>
       <td><b>${r.total}</b></td><td>${st}</td>
-      <td><button class="btn btn-sm" onclick="gradeResult('${r.empNo}')">채점/보기</button></td></tr>`;
+      <td>
+        <button class="btn btn-sm" onclick="gradeResult('${r.empNo}')">채점/보기</button>
+        <button class="btn-red btn-sm" style="color:#fff" onclick="deleteResult('${r.empNo}','${esc(r.name)}')">응시내용 삭제</button>
+      </td></tr>`;
   });
   panel.innerHTML=`<div class="card"><h2>응시 결과 · 주관식 채점</h2>
     <div class="desc">주관식은 1차 자동채점 점수가 들어가 있습니다. '채점/보기'에서 확인·수정 후 확정하세요.</div>
@@ -756,6 +767,15 @@ async function renderResults(){
     </div>`;
   const sel=$("resFilter"); if(sel) sel.onchange=()=>{window._resF=sel.value;renderResults();};
 }
+
+/* 응시 내용 삭제 (관리자) — 결과만 지우고 계정은 유지, 재응시 가능하게 함 */
+window.deleteResult=async(emp,name)=>{
+  if(!confirm(`${name} (${emp})님의 응시 내용을 삭제할까요?\n제출한 답안과 채점 결과가 지워지며, 계정은 유지되어 다시 응시할 수 있습니다.`)) return;
+  await deleteDoc(doc(db,"results",emp)).catch(()=>{});
+  await updateDoc(doc(db,"users",emp),{retake:true}).catch(()=>{});
+  toast("응시 내용이 삭제되었습니다 (재응시 가능)");
+  renderResults();
+};
 
 window.gradeResult=async(emp)=>{
   const rd=await getDoc(doc(db,"results",emp));if(!rd.exists())return;
