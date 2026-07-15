@@ -512,7 +512,7 @@ window.updateProgress=()=>{
 /* 특정 문항으로 이동 + 강조 */
 window.jumpTo=(qid)=>{
   const el=$("qwrap_"+qid); if(!el) return;
-  el.scrollIntoView({behavior:"smooth",block:"start"});
+  el.scrollIntoView({behavior:"smooth",block:"center"});
   el.classList.add("highlight");
   setTimeout(()=>el.classList.remove("highlight"),1400);
 };
