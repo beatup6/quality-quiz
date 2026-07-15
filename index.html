@@ -123,7 +123,28 @@
   .subj-grade input{max-width:90px}
   .filterbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
   .filterbar select{max-width:200px}
-  @media(max-width:560px){.container{padding:16px 12px 50px}.card{padding:16px}}
+  /* ---- 통계 보고서 ---- */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 8px}
+  .kpi{border-radius:12px;padding:16px;text-align:center;border:1px solid var(--line);background:#fff}
+  .kpi .lab{font-size:12px;color:var(--gray)}
+  .kpi .val{font-size:30px;font-weight:800;color:var(--navy);margin-top:4px;line-height:1.1}
+  .kpi .val small{font-size:15px;font-weight:600;color:var(--gray)}
+  .kpi.hl{background:var(--navy)} .kpi.hl .lab{color:#C6D5E2} .kpi.hl .val{color:#fff}
+  .kpi.good{background:var(--teal-l);border-color:var(--teal)} .kpi.good .val{color:var(--teal)}
+  .kpi.warn{background:var(--amber-l);border-color:var(--amber)} .kpi.warn .val{color:#8a6100}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+  .bar-row .blab{width:150px;flex:none;color:var(--ink)}
+  .bar-track{flex:1;height:20px;background:var(--lgray);border-radius:6px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;background:var(--teal);transition:width .4s}
+  .bar-fill.low{background:var(--red)} .bar-fill.mid{background:var(--amber)}
+  .bar-row .bval{width:66px;flex:none;text-align:right;font-weight:700;color:var(--navy)}
+  .rank-num{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--navy);
+    color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:22px}
+  .print-note{font-size:12px;color:var(--gray);margin-top:4px}
+  @media print{header.top,.navbtns,.filterbar,button{display:none!important}
+    .card{border:1px solid #ccc;break-inside:avoid}}
+  @media(max-width:560px){.container{padding:16px 12px 50px}.card{padding:16px}
+    .bar-row .blab{width:110px}}
 </style>
 </head>
 <body>
@@ -187,6 +208,7 @@
       <div class="tab active" data-av="approve" onclick="adminTab('approve')">가입 승인</div>
       <div class="tab" data-av="users" onclick="adminTab('users')">계정/기수 관리</div>
       <div class="tab" data-av="results" onclick="adminTab('results')">응시 결과·채점</div>
+      <div class="tab" data-av="report" onclick="adminTab('report')">기수 통계 보고서</div>
       <div class="tab" data-av="answers" onclick="adminTab('answers')">정답·해설</div>
     </div>
 
@@ -566,6 +588,7 @@ window.adminTab=(t)=>{
   if(t==="approve")renderApprove();
   else if(t==="users")renderUsers();
   else if(t==="results")renderResults();
+  else if(t==="report")renderReport();
   else renderAnswers();
 };
 
@@ -790,6 +813,150 @@ window.confirmGrade=async(emp)=>{
   await updateDoc(doc(db,"results",emp),{subjScores,partScores,objScore,total,graded:true});
   toast("채점 확정 저장 완료");adminTab('results');
 };
+
+/* ================= 기수 통계 보고서 (관리자 전용) ================= */
+async function renderReport(){
+  const panel=$("panel");
+  const snap=await getDocs(collection(db,"results"));
+  const all=[]; snap.forEach(d=>all.push(d.data()));
+  const cohortSet=[...new Set(all.map(r=>r.cohort))].sort();
+  if(window._repF===undefined) window._repF = cohortSet[0] || "";
+  const f=window._repF;
+  const rows=all.filter(r=>r.cohort===f);
+
+  const filter=`<div class="filterbar"><label style="margin:0">기수 선택</label>
+    <select id="repFilter">
+      ${cohortSet.map(c=>`<option ${f===c?'selected':''}>${esc(c)}</option>`).join("")}
+    </select>
+    <button class="btn-ghost btn-sm" onclick="window.print()">인쇄 / PDF 저장</button>
+    </div>`;
+
+  if(!cohortSet.length){
+    panel.innerHTML=`<div class="card"><h2>기수 통계 보고서</h2>
+      <div class="desc">아직 응시 결과가 없습니다.</div></div>`; return;
+  }
+  if(!rows.length){
+    panel.innerHTML=`<div class="card"><h2>기수 통계 보고서</h2>${filter}
+      <div class="expl">「${esc(f)}」 기수의 응시 결과가 없습니다.</div></div>`;
+    bindRepFilter(); return;
+  }
+
+  // ---- 집계 ----
+  const n=rows.length;
+  const totals=rows.map(r=>r.total);
+  const avg=(arr)=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const mean=avg(totals);
+  const max=Math.max(...totals), min=Math.min(...totals);
+  const PASS=60;
+  const passCnt=totals.filter(t=>t>=PASS).length;
+  const passRate=Math.round(passCnt/n*100);
+  const gradedCnt=rows.filter(r=>r.graded).length;
+
+  // 파트별 평균 (만점 대비)
+  const partMax={p1:32,p2:36,p3:32};
+  const partAvg={
+    p1:avg(rows.map(r=>r.partScores.p1||0)),
+    p2:avg(rows.map(r=>r.partScores.p2||0)),
+    p3:avg(rows.map(r=>r.partScores.p3||0)),
+  };
+  const partName={p1:"Part 1 · 품질경영",p2:"Part 2 · 8D Report",p3:"Part 3 · ESD"};
+
+  // 문항별 정답률 (객관식만) — 취약 문항 파악
+  const qStat=[];
+  PARTS.forEach(pk=>QUESTIONS[pk].items.forEach(q=>{
+    if(q.type!=="obj")return;
+    let correct=0;
+    rows.forEach(r=>{ if(r.answers && r.answers[q.id]===q.ans) correct++; });
+    qStat.push({id:q.id,part:pk,stem:q.stem,rate:Math.round(correct/n*100)});
+  }));
+  const weak=[...qStat].sort((a,b)=>a.rate-b.rate).slice(0,3);
+
+  // 점수 분포 구간
+  const bands=[["90–100",90,100],["80–89",80,89],["70–79",70,79],["60–69",60,69],["60 미만",0,59]];
+  const dist=bands.map(([lab,lo,hi])=>({lab,cnt:totals.filter(t=>t>=lo&&t<=hi).length}));
+
+  // 개인 순위표
+  const ranked=[...rows].sort((a,b)=>b.total-a.total);
+
+  const barClass=(pct)=>pct>=75?"":pct>=50?"mid":"low";
+
+  let html=`<div class="card"><h2>기수 통계 보고서</h2>
+    <div class="desc">「${esc(f)}」 종합 평가 결과 · 관리자 전용</div>${filter}
+
+    <div class="kpi-grid">
+      <div class="kpi hl"><div class="lab">응시 인원</div><div class="val">${n}<small> 명</small></div></div>
+      <div class="kpi"><div class="lab">평균 점수</div><div class="val">${mean.toFixed(1)}<small> /100</small></div></div>
+      <div class="kpi good"><div class="lab">최고 점수</div><div class="val">${max}</div></div>
+      <div class="kpi warn"><div class="lab">최저 점수</div><div class="val">${min}</div></div>
+      <div class="kpi"><div class="lab">합격률 (60점↑)</div><div class="val">${passRate}<small> %</small></div></div>
+    </div>
+    <div class="print-note">채점 확정 ${gradedCnt}/${n}명 · 주관식 미확정 응시자는 자동채점 점수가 반영되어 있습니다.</div>
+  </div>`;
+
+  // 파트별 평균
+  html+=`<div class="card"><h2>파트별 평균 (만점 대비)</h2>
+    <div class="desc">어느 영역이 강하고 약한지 한눈에 봅니다.</div>`;
+  PARTS.forEach(pk=>{
+    const pct=Math.round(partAvg[pk]/partMax[pk]*100);
+    html+=`<div class="bar-row">
+      <span class="blab">${esc(partName[pk])}</span>
+      <div class="bar-track"><div class="bar-fill ${barClass(pct)}" style="width:${pct}%"></div></div>
+      <span class="bval">${partAvg[pk].toFixed(1)}/${partMax[pk]}</span></div>`;
+  });
+  html+=`</div>`;
+
+  // 점수 분포
+  html+=`<div class="card"><h2>점수 분포</h2>`;
+  const maxBand=Math.max(...dist.map(d=>d.cnt),1);
+  dist.forEach(d=>{
+    const pct=Math.round(d.cnt/maxBand*100);
+    html+=`<div class="bar-row">
+      <span class="blab">${d.lab}점</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${d.cnt?Math.max(pct,6):0}%"></div></div>
+      <span class="bval">${d.cnt}명</span></div>`;
+  });
+  html+=`</div>`;
+
+  // 취약 문항 (객관식 정답률 하위 3)
+  html+=`<div class="card"><h2>취약 문항 TOP 3 (객관식 정답률 하위)</h2>
+    <div class="desc">보충 교육이 필요한 항목입니다.</div>
+    <table><thead><tr><th>문항</th><th>내용</th><th>정답률</th></tr></thead><tbody>`;
+  weak.forEach(w=>{
+    const cls=w.rate<50?"ans-wrong":"";
+    html+=`<tr><td>${w.id.slice(1)}번</td><td>${esc(w.stem.slice(0,42))}${w.stem.length>42?"…":""}</td>
+      <td class="${cls}"><b>${w.rate}%</b></td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // 전체 문항 정답률
+  html+=`<div class="card"><h2>문항별 정답률 (객관식 전체)</h2>`;
+  qStat.forEach(q=>{
+    html+=`<div class="bar-row">
+      <span class="blab">${q.id.slice(1)}번</span>
+      <div class="bar-track"><div class="bar-fill ${barClass(q.rate)}" style="width:${q.rate}%"></div></div>
+      <span class="bval">${q.rate}%</span></div>`;
+  });
+  html+=`</div>`;
+
+  // 개인 순위표
+  html+=`<div class="card"><h2>개인별 결과 (총점순)</h2>
+    <table><thead><tr><th>순위</th><th>이름</th><th>사번</th><th>P1</th><th>P2</th><th>P3</th><th>총점</th><th>합격</th><th>상태</th></tr></thead><tbody>`;
+  ranked.forEach((r,i)=>{
+    const pass=r.total>=PASS?`<span class="pill active">합격</span>`:`<span class="pill locked">재교육</span>`;
+    const st=r.graded?`<span class="pill done">확정</span>`:`<span class="pill wait">대기</span>`;
+    html+=`<tr><td><span class="rank-num">${i+1}</span></td><td>${esc(r.name)}</td><td>${esc(r.empNo)}</td>
+      <td>${r.partScores.p1}</td><td>${r.partScores.p2}</td><td>${r.partScores.p3}</td>
+      <td><b>${r.total}</b></td><td>${pass}</td><td>${st}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  panel.innerHTML=html;
+  bindRepFilter();
+}
+function bindRepFilter(){
+  const sel=$("repFilter");
+  if(sel) sel.onchange=()=>{window._repF=sel.value;renderReport();};
+}
 
 function renderAnswers(){
   const panel=$("panel");
